@@ -7,9 +7,3 @@ enum Authentication {
 protocol AuthenticationProvider {
     var authentication: Authentication? { get }
 }
-
-extension AuthenticationProvider where Self == UserSettings {
-
-    static var `default`: Self { .shared }
-
-}
