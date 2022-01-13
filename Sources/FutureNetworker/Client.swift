@@ -2,11 +2,11 @@ import Foundation
 
 public class Client {
 
-    public let session: URLSession
+    let session: URLSession
 
     public static let shared = Client()
 
-    init(session: URLSession = .shared) {
+    public init(session: URLSession = .shared) {
         self.session = session
     }
 
