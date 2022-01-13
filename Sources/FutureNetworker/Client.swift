@@ -96,13 +96,6 @@ public class Client {
             return
         }
         
-        if let responseError = try? JSONDecoder().decode(ResponseError.self, from: data),
-           responseError.status != "SUCCESS" {
-            let networkError = NetworkError.responseError(responseError.status, responseError.message)
-            result = .failure(networkError)
-            return
-        }
-        
         result = decode(data: data)
     }
     
@@ -133,11 +126,6 @@ public class Client {
         
         guard let data = data else {
             throw NetworkError.decoding
-        }
-        
-        if let responseError = try? JSONDecoder().decode(ResponseError.self, from: data),
-           responseError.status != "SUCCESS" {
-            throw NetworkError.responseError(responseError.status, responseError.message)
         }
         
         let result: T = try decode(data: data)
