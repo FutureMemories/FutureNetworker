@@ -25,7 +25,7 @@ public class Client {
 //    }
     
     @discardableResult
-    func request<T: Decodable>(_ endpoint: Endpoint<T>) async throws -> T {
+    public func request<T: Decodable>(_ endpoint: Endpoint<T>) async throws -> T {
         guard var urlRequest = endpoint.urlRequest else {
             throw NetworkError.unknown
         }
