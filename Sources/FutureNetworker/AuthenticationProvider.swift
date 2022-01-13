@@ -1,9 +1,9 @@
 import Foundation
 
-enum Authentication {
+public enum Authentication {
     case bearer(username: String, password: String)
 }
 
-protocol AuthenticationProvider {
+public protocol AuthenticationProvider {
     var authentication: Authentication? { get }
 }

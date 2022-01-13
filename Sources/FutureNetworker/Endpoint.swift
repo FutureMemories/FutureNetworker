@@ -16,7 +16,7 @@ public final class Endpoint<T: Decodable>: URLRequestConvertible {
     private var parameters: RequestParameters
     private var authenticationProvider: AuthenticationProvider?
 
-    init(method: Method = .get,
+    public init(method: Method = .get,
          host: String,
          path: String,
          parameters: RequestParameters = .none,
@@ -69,55 +69,55 @@ public final class Endpoint<T: Decodable>: URLRequestConvertible {
 
 }
 
-enum RequestParameters {
+public enum RequestParameters {
     case body(Parameters)
     case query(Parameters)
     case none
 }
 
-enum Method: String {
+public enum Method: String {
     case get = "GET"
     case post = "POST"
     case put = "PUT"
     case delete = "DELETE"
 }
 
-typealias Parameters = [String : ParameterValueConvertible?]
+public typealias Parameters = [String : ParameterValueConvertible?]
 
-protocol ParameterValueConvertible {
+public protocol ParameterValueConvertible {
     var parameterValue: String { get }
 }
 
 extension Int: ParameterValueConvertible {
-    var parameterValue: String { String(self) }
+    public var parameterValue: String { String(self) }
 }
 
 extension UInt: ParameterValueConvertible {
-    var parameterValue: String { String(self) }
+    public var parameterValue: String { String(self) }
 }
 
 extension Int64: ParameterValueConvertible {
-    var parameterValue: String { String(self) }
+    public var parameterValue: String { String(self) }
 }
 
 extension Array: ParameterValueConvertible where Element: ParameterValueConvertible {
-    var parameterValue: String { map(\.parameterValue).joined(separator: ",") }
+    public var parameterValue: String { map(\.parameterValue).joined(separator: ",") }
 }
 
 extension String: ParameterValueConvertible {
-    var parameterValue: String { self }
+    public var parameterValue: String { self }
 }
 
 extension Double: ParameterValueConvertible {
-    var parameterValue: String { String(self) }
+    public var parameterValue: String { String(self) }
 }
 
 extension Bool: ParameterValueConvertible {
-    var parameterValue: String { self ? "true" : "false" }
+    public var parameterValue: String { self ? "true" : "false" }
 }
 
 extension Date: ParameterValueConvertible {
-    var parameterValue: String {
+    public var parameterValue: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: self)
@@ -125,7 +125,7 @@ extension Date: ParameterValueConvertible {
 }
 
 extension Dictionary: ParameterValueConvertible where Key: Encodable, Value: Encodable {
-    var parameterValue: String {
+    public var parameterValue: String {
         let encoder = JSONEncoder()
         if let data = try? encoder.encode(self),
            let string = String(data: data, encoding: .utf8) {
