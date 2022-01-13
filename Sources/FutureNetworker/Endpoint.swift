@@ -8,7 +8,7 @@ extension URLRequestConvertible {
     public var urlRequest: URLRequest? { try? asURLRequest() }
 }
 
-final class Endpoint<T: Decodable>: URLRequestConvertible {
+public final class Endpoint<T: Decodable>: URLRequestConvertible {
 
     private let host: String
     private var method: Method

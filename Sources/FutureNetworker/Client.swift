@@ -1,6 +1,6 @@
 import Foundation
 
-class Client {
+public class Client {
 
     let session: URLSession
 

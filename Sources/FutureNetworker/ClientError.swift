@@ -1,6 +1,6 @@
 import Foundation
 
-enum NetworkError: LocalizedError {
+public enum NetworkError: LocalizedError {
 
     case unknown
     case responseError(_ status: String?, _ message: String?)
@@ -16,7 +16,7 @@ enum NetworkError: LocalizedError {
         }
     }
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .unknown:
             return "Unknown error"
@@ -32,9 +32,4 @@ enum NetworkError: LocalizedError {
             return "Du behöver logga in"
         }
     }
-}
-
-struct ResponseError: Decodable {
-    let status: String
-    let message: String?
 }
