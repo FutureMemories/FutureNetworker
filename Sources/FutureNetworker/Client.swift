@@ -2,7 +2,7 @@ import Foundation
 
 public class Client {
 
-    let session: URLSession
+    public let session: URLSession
 
     public static let shared = Client()
 
