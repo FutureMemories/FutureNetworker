@@ -4,7 +4,7 @@ public class Client {
 
     let session: URLSession
 
-    static let shared = Client()
+    public static let shared = Client()
 
     init(session: URLSession = .shared) {
         self.session = session
