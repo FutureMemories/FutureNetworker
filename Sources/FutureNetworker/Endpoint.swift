@@ -60,6 +60,10 @@ public final class Endpoint<T: Decodable>: URLRequestConvertible {
             urlRequest.httpBody = json
         }
 
+        if case let .json(data) = parameters {
+            urlRequest.httpBody = json
+        }
+        
         return urlRequest
     }
 
@@ -72,6 +76,7 @@ public final class Endpoint<T: Decodable>: URLRequestConvertible {
 public enum RequestParameters {
     case body(Parameters)
     case query(Parameters)
+    case json(Data)
     case none
 }
 
