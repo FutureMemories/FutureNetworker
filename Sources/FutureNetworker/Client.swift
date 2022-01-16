@@ -9,20 +9,6 @@ public class Client {
     public init(session: URLSession = .shared) {
         self.session = session
     }
-
-//    func request<T>(_ endpoint: Endpoint<T>, completion: @escaping (Result<T, NetworkError>) -> Void) where T: Decodable {
-//        guard var urlRequest = endpoint.urlRequest else {
-//            completion(.failure(.unknown))
-//            return
-//        }
-//        urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
-//        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-//        urlRequest.timeoutInterval = 20
-//
-//        session.dataTask(with: urlRequest) { data, urlResponse, error in
-//            self.handleResponse(data, urlResponse: urlResponse, error: error, completion: completion)
-//        }.resume()
-//    }
     
     @discardableResult
     public func request<T: Decodable>(_ endpoint: Endpoint<T>) async throws -> T {
@@ -35,6 +21,18 @@ public class Client {
         
         let (data, urlResponse) = try await data(for: urlRequest)
         return try handleResponse(data, urlResponse: urlResponse)
+    }
+    
+    public func request<T: Decodable>(_ endpoint: Endpoint<T>, completion: @escaping (Result<T, Error>) -> Void) {
+        Task {
+            do {
+                let response = try await request(endpoint)
+                completion(.success(response))
+            }
+            catch {
+                completion(.failure(error))
+            }
+        }
     }
     
     private func data(for urlRequest: URLRequest) async throws -> (Data, URLResponse) {
