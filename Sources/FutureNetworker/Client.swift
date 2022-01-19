@@ -28,7 +28,7 @@ public class Client {
         }
         urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.timeoutInterval = 20
+        urlRequest.timeoutInterval = 60 // temporary. This should be 20
         
         let (data, urlResponse) = try await data(for: urlRequest)
         return try responseHandler.handleResponse(data, urlResponse: urlResponse)
