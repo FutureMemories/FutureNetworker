@@ -7,9 +7,9 @@ public struct IdentityAndTrust {
 }
 
 public struct MTLSInfo {
-    let p12Path: URL
-    let password: String
-    let derPath: URL
+   public let p12Path: URL
+   public let password: String
+   public let derPath: URL
 }
 
 
