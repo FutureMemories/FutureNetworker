@@ -20,7 +20,7 @@ public final class Endpoint<T: Decodable>: URLRequestConvertible {
     private let host: String
     private var method: Method
     private var path: String
-    private var parameters: RequestParameters
+    internal var parameters: RequestParameters
     private var authenticationProvider: AuthenticationProvider?
 
     public init(method: Method = .get,
@@ -67,7 +67,7 @@ public final class Endpoint<T: Decodable>: URLRequestConvertible {
             urlRequest.httpBody = json
         }
 
-        if case let .json(data) = parameters {
+        if case let .data(data) = parameters {
             urlRequest.httpBody = data
         }
         

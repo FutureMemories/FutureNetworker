@@ -3,7 +3,8 @@ import Foundation
 public enum RequestParameters {
     case body(Parameters)
     case query(Parameters)
-    case json(Data)
+    case data(Data)
+    case upload(Data)
     case none
 }
 

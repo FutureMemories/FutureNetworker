@@ -18,8 +18,9 @@ public struct MTLSInfo {
     }
 }
 
-
 public class Client: NSObject {
+    public typealias Percentage = Double
+    public typealias ProgressHandler = (Percentage) -> Void
 
     public lazy var session = URLSession(configuration: .default, delegate: self, delegateQueue: .main)
     
@@ -28,22 +29,32 @@ public class Client: NSObject {
     public var mTLSInfo: MTLSInfo?
     
     private let responseHandler: ResponseHandler
-
+    
+    private var progressHandlersByTaskID = [Int : ProgressHandler]()
+    
     public init(responseHandler: ResponseHandler = DefaultResponseHandler()) {
         self.responseHandler = responseHandler
     }
     
     @discardableResult
-    public func request<T: Decodable>(_ endpoint: Endpoint<T>) async throws -> T {
+    public func request<T: Decodable>(_ endpoint: Endpoint<T>, progressHandler: ProgressHandler? = nil) async throws -> T {
         guard var urlRequest = endpoint.urlRequest else {
             throw NetworkError.unknown
         }
+
         urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.timeoutInterval = 20
+    
+        if case .upload(let data) = endpoint.parameters {
+            let (data, urlResponse) = try await upload(for: urlRequest, data: data, progressHandler: progressHandler)
+            return try responseHandler.handleResponse(data, urlResponse: urlResponse)
+        } else {
+            let (data, urlResponse) = try await data(for: urlRequest, progressHandler: progressHandler)
+            return try responseHandler.handleResponse(data, urlResponse: urlResponse)
+        }
         
-        let (data, urlResponse) = try await data(for: urlRequest)
-        return try responseHandler.handleResponse(data, urlResponse: urlResponse)
+        
     }
     
     public func request<T: Decodable>(_ endpoint: Endpoint<T>, completion: @escaping (Result<T, Error>) -> Void) {
@@ -58,9 +69,9 @@ public class Client: NSObject {
         }
     }
     
-    private func data(for urlRequest: URLRequest) async throws -> (Data, URLResponse) {
+    private func data(for urlRequest: URLRequest, progressHandler: ProgressHandler?) async throws -> (Data, URLResponse) {
         try await withCheckedThrowingContinuation { continuation in
-            session.dataTask(with: urlRequest) { data, response, error in
+           let task = session.dataTask(with: urlRequest) { data, response, error in
                 if let error = error {
                     continuation.resume(throwing: error)
                 } else if let data = data, let response = response {
@@ -68,10 +79,38 @@ public class Client: NSObject {
                 } else {
                     continuation.resume(throwing: NetworkError.unknown)
                 }
-            }.resume()
+            }
+            progressHandlersByTaskID[task.taskIdentifier] = progressHandler
+            
+            task.resume()
         }
     }
 
+    private func upload(for urlRequest: URLRequest, data: Data, progressHandler: ProgressHandler?) async throws -> (Data, URLResponse) {
+        try await withCheckedThrowingContinuation { continuation in
+
+            let task = session.uploadTask(with: urlRequest, from: data) { data, response, error in
+                if let error = error {
+                    continuation.resume(throwing: error)
+                } else if let data = data, let response = response {
+                    continuation.resume(returning: (data, response))
+                } else {
+                    continuation.resume(throwing: NetworkError.unknown)
+                }
+            }
+            progressHandlersByTaskID[task.taskIdentifier] = progressHandler
+            task.resume()
+        }
+    }
+    
+}
+
+extension Client: URLSessionTaskDelegate {
+    public func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
+        let progress = Double(totalBytesSent) / Double(totalBytesExpectedToSend)
+        let handler = progressHandlersByTaskID[task.taskIdentifier]
+        handler?(progress)
+    }
 }
 
 extension Client: URLSessionDelegate {
@@ -89,7 +128,6 @@ extension Client: URLSessionDelegate {
 
             if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust
                 && challenge.protectionSpace.serverTrust != nil {
-                //                   && challenge.protectionSpace.host == "yourdomain.com" {
                 
                 let pem = mTLSInfo.derPath
                 if let trust = challenge.protectionSpace.serverTrust,
