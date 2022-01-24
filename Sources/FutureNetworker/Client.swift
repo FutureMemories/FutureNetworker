@@ -1,23 +1,29 @@
 import Foundation
 
-public protocol Session {
-    
-    func dataTask(with request: URLRequest, completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) -> URLSessionDataTask
-    
+public struct IdentityAndTrust {
+    public var identityRef: SecIdentity
+    public var trust: SecTrust
+    public var certArray: NSArray
 }
 
-extension URLSession: Session {}
+public struct MTLSInfo {
+    let p12Path: URL
+    let password: String
+    let derPath: URL
+}
 
-public class Client {
 
-    let session: Session
+public class Client: NSObject {
 
+    public lazy var session = URLSession(configuration: .default, delegate: self, delegateQueue: .main)
+    
     public static let shared: Client = .init()
+
+    public var mTLSInfo: MTLSInfo?
     
     private let responseHandler: ResponseHandler
 
-    public init(session: Session = URLSession.shared, responseHandler: ResponseHandler = DefaultResponseHandler()) {
-        self.session = session
+    public init(responseHandler: ResponseHandler = DefaultResponseHandler()) {
         self.responseHandler = responseHandler
     }
     
@@ -28,7 +34,7 @@ public class Client {
         }
         urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        urlRequest.timeoutInterval = 60 // temporary. This should be 20
+        urlRequest.timeoutInterval = 20
         
         let (data, urlResponse) = try await data(for: urlRequest)
         return try responseHandler.handleResponse(data, urlResponse: urlResponse)
@@ -58,6 +64,100 @@ public class Client {
                 }
             }.resume()
         }
+    }
+
+}
+
+extension Client: URLSessionDelegate {
+    public func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+        
+        guard let mTLSInfo = mTLSInfo else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+        
+        let localCertPath = mTLSInfo.p12Path
+        
+        if let localCertData = try? Data(contentsOf: localCertPath) {
+            let identityAndTrust: IdentityAndTrust = extractIdentity(certData: localCertData as NSData, certPassword: mTLSInfo.password)
+
+            if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust
+                && challenge.protectionSpace.serverTrust != nil {
+                //                   && challenge.protectionSpace.host == "yourdomain.com" {
+                
+                let pem = mTLSInfo.derPath
+                if let trust = challenge.protectionSpace.serverTrust,
+                   let data = NSData(contentsOf: pem),
+                   let cert = SecCertificateCreateWithData(nil, data) {
+                    
+                    let certs = [cert]
+                    SecTrustSetAnchorCertificates(trust, certs as CFArray)
+                    let result = SecTrustResultType.invalid
+                    
+                    if SecTrustEvaluateWithError(trust, nil) {
+                        
+                        if result == SecTrustResultType.proceed || result == SecTrustResultType.unspecified {
+                            let proposedCredential = URLCredential(trust: trust)
+                            completionHandler(.useCredential,proposedCredential)
+                            return
+                        }
+                    }
+                    
+                }
+                completionHandler(.performDefaultHandling, nil)
+            }
+            
+            
+            if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodClientCertificate {
+                
+                let urlCredential:URLCredential = URLCredential(
+                    identity: identityAndTrust.identityRef,
+                    certificates: identityAndTrust.certArray as [AnyObject],
+                    persistence: URLCredential.Persistence.permanent)
+                
+                completionHandler(URLSession.AuthChallengeDisposition.useCredential, urlCredential)
+                return
+            }
+            
+        }
+        
+        challenge.sender?.cancel(challenge)
+        completionHandler(URLSession.AuthChallengeDisposition.rejectProtectionSpace, nil)
+    }
+    
+    private func extractIdentity(certData:NSData, certPassword:String) -> IdentityAndTrust {
+        
+        var identityAndTrust: IdentityAndTrust!
+        var securityError: OSStatus = errSecSuccess
+        
+        var items: CFArray!
+        let certOptions: Dictionary = [ kSecImportExportPassphrase as String : certPassword ]
+        
+        securityError = SecPKCS12Import(certData, certOptions as CFDictionary, &items)
+        
+        if securityError == errSecSuccess {
+            
+            let certItems:CFArray = items as CFArray
+            let certItemsArray:Array = certItems as Array
+            let dict:AnyObject? = certItemsArray.first
+            
+            if let certEntry:Dictionary = dict as? Dictionary<String, AnyObject> {
+                let identityPointer:AnyObject? = certEntry["identity"]
+                let secIdentityRef:SecIdentity = identityPointer as! SecIdentity
+                
+                let trustPointer:AnyObject? = certEntry["trust"]
+                let trustRef:SecTrust = trustPointer as! SecTrust
+                
+                var certRef: SecCertificate!
+                SecIdentityCopyCertificate(secIdentityRef, &certRef)
+                let certArray:NSMutableArray = NSMutableArray()
+                certArray.add(certRef as SecCertificate)
+                
+                identityAndTrust = IdentityAndTrust(identityRef: secIdentityRef, trust: trustRef, certArray: certArray);
+            }
+        }
+        
+        return identityAndTrust
     }
 
 }
