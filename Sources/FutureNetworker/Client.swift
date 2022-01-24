@@ -7,9 +7,15 @@ public struct IdentityAndTrust {
 }
 
 public struct MTLSInfo {
-   public let p12Path: URL
-   public let password: String
-   public let derPath: URL
+    public let p12Path: URL
+    public let password: String
+    public let derPath: URL
+    
+    public init(p12Path: URL, password: String, derPath: URL) {
+        self.p12Path = p12Path
+        self.password = password
+        self.derPath = derPath
+    }
 }
 
 
